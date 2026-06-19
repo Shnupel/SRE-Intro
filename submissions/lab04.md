@@ -19,7 +19,7 @@ k3d-quickticket-server-0   Ready    control-plane,master   12m   v1.31.5+k3s1
 
 ### Pods and services
 
-Command:
+Command: 
 
 ```bash
 kubectl get pods,svc
