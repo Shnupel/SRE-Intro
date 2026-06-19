@@ -1,16 +1,6 @@
-# Student-produced artifacts — NOT part of the course repo.
-# These live in a student's fork of the course, not upstream.
-
-
 
 # Instructor-only reference submissions (dry-run results, not student deliverables)
-# These show what "correct" looks like; students don't see them.
 refs/
-
-# Database migrations (students run `alembic init` in lab 9)
-migrations/
-alembic.ini
-
 # CI workflow (students add this in lab 5 to their fork)
 .github/
 
@@ -22,6 +12,3 @@ alembic.ini
 .venv/
 __pycache__/
 *.pyc
-
-# Lab 3 Prometheus config — students write their own
-monitoring/prometheus/
