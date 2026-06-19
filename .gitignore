@@ -2,16 +2,10 @@
 # These live in a student's fork of the course, not upstream.
 
 
-# Student submission directory (students submit via Moodle/link, not git)
-# Keep it ignored by default, but allow the current lab hand-in file.
-submissions/*
 
 # Instructor-only reference submissions (dry-run results, not student deliverables)
 # These show what "correct" looks like; students don't see them.
 refs/
-
-# K8s manifests (students write them in lab 4 per-service)
-k8s/
 
 # Database migrations (students run `alembic init` in lab 9)
 migrations/
