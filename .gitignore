@@ -5,6 +5,7 @@
 # Keep it ignored by default, but allow the current lab hand-in file.
 submissions/*
 !submissions/lab02.md
+!submissions/lab03.md
 
 # Instructor-only reference submissions (dry-run results, not student deliverables)
 # These show what "correct" looks like; students don't see them.
@@ -31,3 +32,6 @@ __pycache__/
 
 # Lab 3 Prometheus config — students write their own
 monitoring/prometheus/
+!monitoring/prometheus/
+!monitoring/prometheus/prometheus.yml
+!monitoring/prometheus/rules.yml
