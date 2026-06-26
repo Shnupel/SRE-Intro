@@ -2,7 +2,7 @@
 
 ## Task 1. CI pipeline + ArgoCD setup
 
-### What I implemented
+### What I implemented:
 
 I added [`.github/workflows/ci.yml`](/Users/pavel/Documents/study/sre/lab1/SRE-Intro/.github/workflows/ci.yml) that runs on push to `main`, logs into `ghcr.io`, and builds/pushes all 3 images:
 
