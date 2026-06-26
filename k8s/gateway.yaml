@@ -2,6 +2,8 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: gateway
+  labels:
+    version: "v2"
 spec:
   replicas: 1
   selector:
@@ -11,11 +13,14 @@ spec:
     metadata:
       labels:
         app: gateway
+        version: "v2"
     spec:
+      imagePullSecrets:
+        - name: ghcr-secret
       containers:
         - name: gateway
-          image: quickticket-gateway:v1
-          imagePullPolicy: Never
+          image: ghcr.io/shnupel/quickticket-gateway:c0b57674d19ee81195b6993de20947403fd012ee
+          imagePullPolicy: Always
           ports:
             - containerPort: 8080
           env:
@@ -49,6 +54,8 @@ apiVersion: v1
 kind: Service
 metadata:
   name: gateway
+  labels:
+    version: "v2"
 spec:
   type: ClusterIP
   selector:
