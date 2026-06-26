@@ -1,183 +1,131 @@
 # Lab 5 Submission
 
-## Task 1. CI pipeline and GitOps preparation
+## Task 1. CI pipeline + ArgoCD setup
 
-### What I added
+### What I implemented
 
-I implemented the required CI workflow in [`.github/workflows/ci.yml`](/Users/pavel/Documents/study/sre/lab1/SRE-Intro/.github/workflows/ci.yml) and updated the Kubernetes Deployments in [`k8s/gateway.yaml`](/Users/pavel/Documents/study/sre/lab1/SRE-Intro/k8s/gateway.yaml), [`k8s/events.yaml`](/Users/pavel/Documents/study/sre/lab1/SRE-Intro/k8s/events.yaml), and [`k8s/payments.yaml`](/Users/pavel/Documents/study/sre/lab1/SRE-Intro/k8s/payments.yaml).
+I added [`.github/workflows/ci.yml`](/Users/pavel/Documents/study/sre/lab1/SRE-Intro/.github/workflows/ci.yml) that runs on push to `main`, logs into `ghcr.io`, and builds/pushes all 3 images:
 
-The workflow:
+- `ghcr.io/shnupel/quickticket-gateway:${{ github.sha }}`
+- `ghcr.io/shnupel/quickticket-events:${{ github.sha }}`
+- `ghcr.io/shnupel/quickticket-payments:${{ github.sha }}`
 
-- triggers on push to `main`
-- logs into `ghcr.io`
-- builds and pushes all 3 service images with the tag `${{ github.sha }}`
+Then I updated the Kubernetes Deployments in [`k8s/gateway.yaml`](/Users/pavel/Documents/study/sre/lab1/SRE-Intro/k8s/gateway.yaml), [`k8s/events.yaml`](/Users/pavel/Documents/study/sre/lab1/SRE-Intro/k8s/events.yaml), and [`k8s/payments.yaml`](/Users/pavel/Documents/study/sre/lab1/SRE-Intro/k8s/payments.yaml) to use the pushed GHCR images with the immutable tag from the first successful CI run:
 
-The manifests now:
+```text
+c0b57674d19ee81195b6993de20947403fd012ee
+```
 
-- use `ghcr.io/shnupel/quickticket-<service>:REPLACE_WITH_COMMIT_SHA`
-- set `imagePullPolicy: Always`
-- define `imagePullSecrets: [ghcr-secret]`
-- add a visible `version: "v2"` label to `gateway` for the GitOps sync proof
+I also:
 
-### CI workflow
+- changed `imagePullPolicy` to `Always`
+- added `imagePullSecrets: [ghcr-secret]`
+- added `version: "v2"` to `gateway` metadata to prove GitOps sync
+- installed ArgoCD in the `argocd` namespace
+- created the `quickticket` ArgoCD Application pointing to `https://github.com/Shnupel/SRE-Intro.git`, path `k8s`, branch `main`
 
-File:
+### 1. GitHub Actions run
 
-```yaml
-# .github/workflows/ci.yml
+Run link:
+
+```text
+https://github.com/Shnupel/SRE-Intro/actions/runs/28262107287
+```
+
+Relevant status from GitHub API:
+
+```text
 name: CI
-
-on:
-  push:
-    branches:
-      - main
-
-env:
-  REGISTRY: ghcr.io
-  IMAGE_OWNER: shnupel
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-
-    strategy:
-      fail-fast: false
-      matrix:
-        service:
-          - gateway
-          - events
-          - payments
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and push ${{ matrix.service }}
-        uses: docker/build-push-action@v6
-        with:
-          context: ./app/${{ matrix.service }}
-          push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/quickticket-${{ matrix.service }}:${{ github.sha }}
+head_sha: c0b57674d19ee81195b6993de20947403fd012ee
+status: completed
+conclusion: success
 ```
 
-### Required verification steps
+Matrix jobs summary:
 
-The remaining part of the lab must be executed after pushing this branch to GitHub and after starting a working Kubernetes cluster with ArgoCD access.
-
-1. Push workflow and manifests to `main`.
-2. Wait for the GitHub Actions run to finish successfully.
-3. Replace `REPLACE_WITH_COMMIT_SHA` in the three Deployment manifests with the actual commit SHA from the successful CI run.
-4. Create the pull secret:
-
-```bash
-kubectl create secret docker-registry ghcr-secret \
-  --docker-server=ghcr.io \
-  --docker-username=shnupel \
-  --docker-password=YOUR_CLASSIC_PAT
+```text
+build (payments)  success
+build (events)    success
+build (gateway)   success
 ```
 
-5. Install ArgoCD and create the application:
+### 2. Pushed images
 
-```bash
-kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
-kubectl wait --for=condition=Available deployment/argocd-server -n argocd --timeout=120s
-kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
-echo
+The lab asks for `gh api user/packages?package_type=container`, but `gh` CLI was not installed in this environment. I verified the pushed packages through the public GitHub Packages page for the same repository.
 
-kubectl port-forward svc/argocd-server -n argocd 8443:443 &
-argocd login localhost:8443 --insecure --username admin --password <PASSWORD>
-argocd app create quickticket \
-  --repo https://github.com/Shnupel/SRE-Intro.git \
-  --path k8s \
-  --dest-server https://kubernetes.default.svc \
-  --dest-namespace default \
-  --sync-policy automated
-argocd app get quickticket
+Equivalent package list:
+
+```text
+quickticket-payments
+quickticket-events
+quickticket-gateway
 ```
 
-### Proof of work
+Captured output:
 
-I could not honestly paste the final runtime outputs for this section from the current environment, because:
+```text
+<a ... title="quickticket-payments" ...>quickticket-payments</a>
+<a ... title="quickticket-events" ...>quickticket-events</a>
+<a ... title="quickticket-gateway" ...>quickticket-gateway</a>
+```
 
-- the local kubeconfig points to `https://0.0.0.0:53559`, but the API server currently returns `connection refused`
-- `k3d` is not installed in this shell environment
-- GitHub Actions / ghcr / ArgoCD verification requires external services and a running cluster
+### 3. ArgoCD application status
 
-Current local checks:
+Command:
 
 ```bash
-git remote -v
-git rev-parse HEAD
-kubectl get nodes
+/tmp/argocd app get quickticket
 ```
 
 Output:
 
 ```text
-origin  git@github.com:Shnupel/SRE-Intro.git (fetch)
-origin  git@github.com:Shnupel/SRE-Intro.git (push)
+Name:               argocd/quickticket
+Project:            default
+Server:             https://kubernetes.default.svc
+Namespace:          default
+URL:                https://localhost:8443/applications/quickticket
+Source:
+- Repo:             https://github.com/Shnupel/SRE-Intro.git
+  Target:           main
+  Path:             k8s
+SyncWindow:         Sync Allowed
+Sync Policy:        Automated
+Sync Status:        Synced to main (918ca8b)
+Health Status:      Healthy
 
-9f866f76ff167ea5acab296dfe01bc4594c75cbc
-
-The connection to the server 0.0.0.0:53559 was refused - did you specify the right host or port?
+GROUP  KIND        NAMESPACE  NAME      STATUS  HEALTH   HOOK  MESSAGE
+       Service     default    redis     Synced  Healthy        service/redis unchanged
+       Service     default    events    Synced  Healthy        service/events unchanged
+       Service     default    gateway   Synced  Healthy        service/gateway unchanged
+       Service     default    postgres  Synced  Healthy        service/postgres unchanged
+       Service     default    payments  Synced  Healthy        service/payments unchanged
+apps   Deployment  default    payments  Synced  Healthy        deployment.apps/payments unchanged
+apps   Deployment  default    postgres  Synced  Healthy        deployment.apps/postgres unchanged
+apps   Deployment  default    events    Synced  Healthy        deployment.apps/events unchanged
+apps   Deployment  default    redis     Synced  Healthy        deployment.apps/redis unchanged
+apps   Deployment  default    gateway   Synced  Healthy        deployment.apps/gateway unchanged
 ```
 
-After the cluster is started and the workflow completes, paste the following evidence here:
+### 4. Proof that a Git change was synced into the cluster
 
-1. GitHub Actions run link with green status
-2. Output of:
-
-```bash
-gh api user/packages?package_type=container --jq '.[].name'
-```
-
-Expected package names:
-
-```text
-quickticket-gateway
-quickticket-events
-quickticket-payments
-```
-
-3. Output of:
-
-```bash
-argocd app get quickticket
-```
-
-Expected key lines:
-
-```text
-Sync Status: Synced
-Health Status: Healthy
-```
-
-4. Output proving the Git change was synced:
+Command:
 
 ```bash
 kubectl get deployment gateway -o jsonpath='{.metadata.labels.version}'
 echo
 ```
 
-Expected output:
+Output:
 
 ```text
 v2
 ```
 
-### What happens if someone manually runs `kubectl edit` on an ArgoCD-managed resource?
+This proves that the label added in Git was reconciled by ArgoCD into the live cluster.
 
-ArgoCD treats Git as the source of truth. A manual `kubectl edit` changes the live cluster state, so ArgoCD will detect drift and mark the application `OutOfSync`.
+### 5. What happens if someone manually runs `kubectl edit` on a resource managed by ArgoCD?
 
-If automated sync is enabled, ArgoCD will reconcile the resource back to the version stored in Git. In practice, manual changes on managed resources are temporary unless the same change is committed to the repository.
+ArgoCD treats Git as the source of truth. A manual `kubectl edit` changes only the live cluster state, so ArgoCD detects drift and marks the application `OutOfSync`.
+
+Because this application uses automated sync, ArgoCD will reconcile the resource back to the version stored in Git. In practice, manual changes are temporary unless the same change is committed to the repository.
