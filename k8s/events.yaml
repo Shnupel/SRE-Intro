@@ -12,12 +12,10 @@ spec:
       labels:
         app: events
     spec:
-      imagePullSecrets:
-        - name: ghcr-secret
       containers:
         - name: events
-          image: ghcr.io/shnupel/quickticket-events:REPLACE_WITH_COMMIT_SHA
-          imagePullPolicy: Always
+          image: quickticket-events:v1
+          imagePullPolicy: Never
           ports:
             - containerPort: 8081
           env:
